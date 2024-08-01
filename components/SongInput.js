@@ -23,57 +23,69 @@ const SongInput = () => {
   const [songs, setSongs] = useState([]); 
   const [ok, setOk] = useState(false);
   const { ref, inView } = useInView({
-    triggerOnce: true,
-    threshold: 0.1, // Adjust this value to control when the animation starts
+  triggerOnce: true,
+  threshold: 0.1, // Adjust this value to control when the animation starts
   });
 
   const fetchRec = async (song, artist) => {
     try {
-
       const trackInfo = await getTrackInfo(artist, song);
       console.log('Track Info:', trackInfo);
       
       const similarTracksResponse = await getSimilarTracks(artist, song);
       const similarTracks = similarTracksResponse.similartracks.track;
       const twenty = [];
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 30; i++) {
         twenty.push(similarTracks[i]);
       }
       console.log('Similar Tracks:', twenty);
   
       const songsspotify = await Promise.all(
-         twenty.map(async (track) => {
-          const response = await axios.post('/api/scrape', { songName: track.name });
-          const { firstTrackUrl } = response.data;
-          console.log('First Track URL:', firstTrackUrl);
-  
-          return {
-            name: track.name, 
-            artist: track.artist.name,
-            link: firstTrackUrl // Use the URL fetched from the API
+        twenty.map(async (track) => {
+          const songName = track.name;
+          const artistName = track.artist.name;
+          
+          try {
+            const response = await axios.get(`/api/track-id`, {
+              params: {
+                songName: songName,
+                artist: artistName
+              }
+            });
+              if (response.data && response.data.trackId) {
+              console.log(response.data.trackId);
+              return response.data.trackId;
+              
+            } else {
+              console.log(`No trackId found for ${songName}`);
+              return null;
+            }
+          } catch (error) {
+            console.log(`Error fetching trackId for ${songName}:`, error);
+            return null; // Return null in case of error
           }
         })
       );
-
-        twenty.forEach((track, index) => {
-        console.log(`${index + 1}. ${track.name} by ${track.artist}`);
-
-      });
-      return songsspotify;
+      const filteredSongsspotify = songsspotify.filter(track => track !== null);
+      console.log(filteredSongsspotify, "here are the songs");
+  
+      return filteredSongsspotify;
       
     } catch (error) {
       console.error('Error fetching similar tracks:', error);
       throw error;
     }
   };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      setSongs([]); // Empty the song list
+      setSongs([]);
       setOk(true);
       const records = await fetchRec(search, artist);
       setSongs(records);
+      console.log(songs, "setSongs");
       setSearch('');
       setArtist('');
     } catch (error) {
@@ -128,6 +140,7 @@ const SongInput = () => {
         backgroundColor: "#33333380", 
         borderRadius: '20px',
         margin: "50px" }}>
+
         <form
           onSubmit={handleSubmit}
           style={{
@@ -222,7 +235,7 @@ const SongInput = () => {
             <div
             key={index}
             style={{
-                width: 'calc(50% - 15px)', // Adjust width and spacing
+                width: 'calc(50% - 15px)', 
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -232,7 +245,7 @@ const SongInput = () => {
           { (
           <iframe
           style={{ borderRadius: '20px' }}
-          src={`https://open.spotify.com/embed/track/${song.link.split('/').pop()}`}
+          src={`https://open.spotify.com/embed/track/${song}`}
           width="100%"
           height="402"
           frameBorder="0"
